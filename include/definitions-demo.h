@@ -7,7 +7,7 @@
 #ifndef DEFS_H_
 #define DEFS_H_
 
-#define SEED 1234
+#define SEED  // any random int
 #define QUEUE_LEN 128
 
 #define WIFI_SSID ""
