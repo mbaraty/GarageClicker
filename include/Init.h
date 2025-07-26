@@ -6,7 +6,6 @@
 #define INIT_H
 
 #include <RadioLib.h>
-#include <MQTTClient.h>
 
 #include <WiFi.h>
 
@@ -19,9 +18,12 @@
 void configureRadio(SX1262*);
 void initLed(int);
 void initRadio(SX1262*);
+
+#ifdef BASE_MODE
+#include <MQTTClient.h>
 bool setupWifi();
 
 void initMqtt(MQTTClient*, NetworkClient*);
 void initC6Antenna();
-
+#endif
 #endif //INIT_H

@@ -7,7 +7,10 @@
 #include <Init.h>
 #include <MqttUtils.h>
 
-int gstate = SEED;
+#include "Debug.h"
+#include "FramUtils.h"
+
+#define DEBUG
 
 
 SX1262 radio = new Module(LORA_CS, LORA_DIO1, LORA_RST, LORA_BUSY);
@@ -20,6 +23,7 @@ void populateQueue();
 bool validateAndTruncate(int);
 
 
+uint32_t gstate = SEED;
 WiFiClient net;
 MQTTClient mqtt(256);
 std::queue<int> q;
@@ -149,24 +153,37 @@ bool validateAndTruncate(const int x)
 #endif
 
 #ifdef TRIGGER_MODE
-#define BUTTON_PIN 1
+#include <FRAM.h>
 
 int state = 1;
+uint32_t gstate;
 
+void updateGstate(uint32_t);
+
+FRAM fram;
 
 void setup()
 {
     Serial.begin(115200);
+    while (!Serial) {}
 
-    pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, HIGH);
+    Wire.begin(MEM_SDA, MEM_SCL);
+    int rv = fram.begin(0x50);
+    if (rv != 0)
+    {
+        DEBUG_PRINT("FRAM INIT ERROR: ");
+        DEBUG_PRINTLN(rv);
+    }
+    else
+    {
+        DEBUG_PRINTLN("FRAM INIT OK");
+    }
 
-    pinMode(9, OUTPUT);
-    digitalWrite(9, HIGH);
-    pinMode(10, OUTPUT);
-    digitalWrite(10, HIGH);
+    initLed(BLUE_LED);
+    initLed(RED_LED);
+    initLed(GREEN_LED);
 
-    pinMode(BUTTON_PIN, INPUT);
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
 
     // Initialize custom SPI bus
     SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
@@ -188,24 +205,33 @@ void setup()
 
     configureRadio(&radio);
     // You can now send or receive packets...
+
+        //updateGstate(SEED);
+
+        gstate = readGstate(&fram);
+
+    DEBUG_PRINTF("GSTATE: %d\n", gstate);
 }
 
 void loop()
 {
     if (digitalRead(BUTTON_PIN) == LOW)
     {
+        DEBUG_PRINTF("Prev gstate: %d\n", gstate);
         char msg[64];
-        int code = generateNextInt(&gstate);
+        const int code = generateNextInt(&gstate);
+        writeGstate(&fram, gstate);
+        DEBUG_PRINTF("new gstate: %d\n", gstate);
         intToResponse(code, msg);
         Serial.printf("Sending msg -> %s\n", msg);
         state = radio.transmit((uint8_t*)msg, strlen(msg));
         if (state == RADIOLIB_ERR_NONE)
         {
             // After successful transmit
-            Serial.println("Packet sent successfully! Waiting for ACK...");
-            digitalWrite(8,LOW);
+            digitalWrite(BLUE_LED,HIGH);
             delay(100);
-            digitalWrite(8,HIGH);
+            digitalWrite(BLUE_LED,LOW);
+            Serial.println("Packet sent successfully! Waiting for ACK...");
 
             // Start receive mode
             radio.startReceive();
@@ -236,15 +262,15 @@ void loop()
 
             if (ackReceived)
             {
-                digitalWrite(9, LOW);
+                digitalWrite(GREEN_LED, HIGH);
                 delay(500);
-                digitalWrite(9, HIGH);
+                digitalWrite(GREEN_LED, LOW);
             }
             else
             {
-                digitalWrite(10, LOW);
+                digitalWrite(RED_LED, HIGH);
                 delay(500);
-                digitalWrite(10, HIGH);
+                digitalWrite(RED_LED, LOW);
             }
         }
         else
@@ -257,6 +283,11 @@ void loop()
     delay(100);
 }
 
+void updateGstate(uint32_t val)
+{
+    gstate = val;
+    writeGstate(&fram, val);
+}
 
 
 #endif

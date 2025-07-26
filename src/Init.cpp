@@ -7,6 +7,7 @@
 #include <WifiUtils.h>
 #include <MqttUtils.h>
 #include <definitions.h>
+#include <Debug.h>
 
 void configureRadio(SX1262 *radio)
 {
@@ -15,41 +16,46 @@ void configureRadio(SX1262 *radio)
 
     // CRITICAL: Both devices must have identical settings
     radio->setBandwidth(125.0); // kHz
-    radio->setSpreadingFactor(10); // 7-12
+    radio->setSpreadingFactor(11); // 7-12
     radio->setCodingRate(5); // 5-8 (4/5 to 4/8)
     radio->setSyncWord(0x12); // Must match on both devices
-    radio->setOutputPower(15); // dBm
+    radio->setOutputPower(22); // dBm
     radio->setPreambleLength(8); // symbols
 
     // Enable CRC for error detection
     radio->setCRC(true);
 
-    Serial.println("Radio configured with matching parameters");
+    DEBUG_PRINTLN("Radio configured with matching parameters");
 }
 
 // might need to add polarity
 void initLed(int pin) {
     pinMode(pin, OUTPUT);
-    digitalWrite(pin, HIGH);
+    digitalWrite(pin, LOW);
 }
+
+
 
 void initRadio(SX1262 *radio) {
     int state = radio->begin();
 
     if (state == RADIOLIB_ERR_NONE)
     {
-        Serial.println(F("success!"));
+        DEBUG_PRINTLN(F("success!"));
     }
     else
     {
-        Serial.print(F("failed, code "));
-        Serial.println(state);
+        DEBUG_PRINT(F("failed, code "));
+        DEBUG_PRINTLN(state);
         // while (true); // halt
     }
 
     configureRadio(radio);
 }
 
+
+
+#ifdef BASE_MODE
 bool setupWifi()
 {
     try
@@ -58,7 +64,7 @@ bool setupWifi()
         delay(5000);
         WiFi.mode(WIFI_STA);
         WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-        Serial.print("Connecting to Wi-Fi");
+        DEBUG_PRINT("Connecting to Wi-Fi");
 
         while (WiFi.status() != WL_CONNECTED)
         {
@@ -97,3 +103,4 @@ void initC6Antenna()
     pinMode(WIFI_ANT_CONFIG, OUTPUT); // pinMode(14, OUTPUT);
     digitalWrite(WIFI_ANT_CONFIG, HIGH); // digitalWrite(14, HIGH); // Use external antenna
 }
+#endif
